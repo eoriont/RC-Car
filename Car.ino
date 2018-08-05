@@ -4,10 +4,13 @@
 bool radioNumber = 0;
 
 int aEnable = 3;
-int aPhase = 2;
 int bEnable = 5;
+int aPhase = 2;
 int bPhase = 4;
 int mode = 6;
+
+int go = 255;
+int turn = 50;
 
 RF24 radio(7,8) ;
 
@@ -20,14 +23,18 @@ void setup() {
   Serial.println(F("This is the CAR RECIEVER script."));
   
   radio.begin();
-  radio.setPALevel(RF24_PA_LOW);
+
+  radio.setPALevel(RF24_PA_MAX);
+  
   radio.openWritingPipe(addresses[0]);
   radio.openReadingPipe(1,addresses[1]);
+  
+  // Start the radio listening for data
   radio.startListening();
 
   pinMode(aEnable, OUTPUT);
-  pinMode(aPhase, OUTPUT);
   pinMode(bEnable, OUTPUT);
+  pinMode(aPhase, OUTPUT);
   pinMode(bPhase, OUTPUT);
   pinMode(mode, OUTPUT);
 }
@@ -39,68 +46,57 @@ typedef struct {
 Package p;
 
 void loop() {
-
-/****************** Pong Back Role ***************************/
-
+  digitalWrite(mode, HIGH);
   unsigned long got_time;
   
-  
   if( radio.available()){
+    
     while (radio.available()) {
-      radio.read( &p, sizeof(p) );
+      radio.read(&p, sizeof(p));
     }
    
     radio.stopListening();
-    radio.write( &got_time, sizeof(unsigned long) );
+    radio.write(&got_time, sizeof(unsigned long));  
     radio.startListening();
     Serial.print(F("Got class x: "));
     Serial.print(p.x);  
     Serial.print(" || y: ");
     Serial.println(p.y);
 
-    if (p.y > 650) { //forward
+    if (p.y > 700) { //forward
       digitalWrite(aPhase, HIGH);
       digitalWrite(bPhase, HIGH);
-      if (p.x > 650) { // right
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 0);
-      } else if (p.x < 350) { //left
-        analogWrite(aEnable, 0);
-        analogWrite(bEnable, 255);
-      } else {
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 255);
+      if (p.x > 700) { //left
+        analogWrite(aEnable, turn);
+        analogWrite(bEnable, go);
+      } else if (p.x < 300) { //right
+        analogWrite(aEnable, go);
+        analogWrite(bEnable, turn);
       }
-    } else if (p.y < 350) {
+    } else if (p.y < 300) { //backward
       digitalWrite(aPhase, LOW);
       digitalWrite(bPhase, LOW);
-      if (p.x > 650) { // right
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 0);
-      } else if (p.x < 350) { //left
-        analogWrite(aEnable, 0);
-        analogWrite(bEnable, 255);
-      } else {
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 255);
+      if (p.x > 700) { //left
+        analogWrite(aEnable, turn);
+        analogWrite(bEnable, go);
+      } else if (p.x < 300) { //right
+        analogWrite(aEnable, go);
+        analogWrite(bEnable, turn);
       }
-    } else {
+    } else { //stationary
       
-      if (p.x > 650) { // right
-        digitalWrite(aPhase, HIGH);
-        digitalWrite(bPhase, LOW);
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 255);
-      } else if (p.x < 350) { //left
+      if (p.x > 700) { //left
         digitalWrite(aPhase, LOW);
         digitalWrite(bPhase, HIGH);
-        analogWrite(aEnable, 255);
-        analogWrite(bEnable, 255);
-      } else {
-        analogWrite(aEnable, 0);
-        analogWrite(bEnable, 0);
+        analogWrite(aEnable, turn);
+        analogWrite(bEnable, turn);
+      } else if (p.x < 300) { //right
+        digitalWrite(aPhase, HIGH);
+        digitalWrite(bPhase, LOW);
+        analogWrite(aEnable, turn);
+        analogWrite(bEnable, turn);
       }
     }
  }
-  digitalWrite(mode, HIGH);
+  
 } 
